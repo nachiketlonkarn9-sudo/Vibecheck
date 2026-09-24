@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #07050d;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(176, 38, 255, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(0, 247, 255, 0.12) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(255, 19, 137, 0.08) 0px, transparent 60%),
+      radial-gradient(at 100% 100%, rgba(176, 38, 255, 0.15) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(0, 210, 255, 0.12) 0px, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+/* Glassmorphism styling */
+.glass-panel {
+  background: rgba(19, 16, 36, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+}
+
+.glass-card {
+  background: rgba(27, 23, 52, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(176, 38, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 19, 137, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -10px rgba(176, 38, 255, 0.3);
+}
+
+/* Neon Text Glow */
+.text-glow-purple {
+  text-shadow: 0 0 10px rgba(176, 38, 255, 0.8), 0 0 20px rgba(176, 38, 255, 0.4);
+}
+
+.text-glow-pink {
+  text-shadow: 0 0 10px rgba(255, 19, 137, 0.8), 0 0 20px rgba(255, 19, 137, 0.4);
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 247, 255, 0.8), 0 0 20px rgba(0, 247, 255, 0.4);
+}
+
+/* Ken Burns effect */
+@keyframes kenburns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.08) translate(-1%, -1%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+.animate-ken-burns {
+  animation: kenburns 12s ease-in-out infinite alternate;
+}
+
+/* Equalizer Bars */
+@keyframes soundbar {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 22px;
+  }
+}
+
+.eq-bar {
+  animation: soundbar 0.7s ease-in-out infinite alternate;
+}
+
+.eq-bar:nth-child(1) { animation-delay: 0.1s; }
+.eq-bar:nth-child(2) { animation-delay: 0.4s; }
+.eq-bar:nth-child(3) { animation-delay: 0.2s; }
+.eq-bar:nth-child(4) { animation-delay: 0.5s; }
+.eq-bar:nth-child(5) { animation-delay: 0.3s; }
+
+/* Custom glowing scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0b18;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #b026ff, #ff1389);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #00f7ff, #ff1389);
+}
+
+/* Police siren strobe animation */
+@keyframes sirenFlash {
+  0%, 100% {
+    background-color: rgba(255, 0, 55, 0.35);
+    box-shadow: 0 0 50px rgba(255, 0, 55, 0.6);
+  }
+  50% {
+    background-color: rgba(0, 140, 255, 0.35);
+    box-shadow: 0 0 50px rgba(0, 140, 255, 0.6);
+  }
+}
+
+.police-alert-active {
+  animation: sirenFlash 0.35s infinite alternate;
+}
+
+/* Hologram party pass animation */
+.hologram-effect {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(0, 247, 255, 0.15) 25%,
+    rgba(176, 38, 255, 0.2) 50%,
+    rgba(255, 19, 137, 0.15) 75%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  background-size: 200% 200%;
+  animation: hologramShift 6s ease infinite;
+}
+
+@keyframes hologramShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
