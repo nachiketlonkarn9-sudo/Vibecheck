@@ -22,8 +22,12 @@ import {
   deleteAttendee, 
   toggleAttendeeCheckIn 
 } from './data/storage';
+import { 
+  isFirebaseConfigured, 
+  subscribeCloudConfig, 
+  subscribeCloudAttendees 
+} from './firebase';
 import { clubSynth } from './utils/audioSynth';
-import { ShieldCheck, Eye, Sparkles, Settings } from 'lucide-react';
 
 export default function App() {
   // Configuration State
@@ -33,6 +37,9 @@ export default function App() {
   const [attendees, setAttendees] = useState([]);
   const [myPass, setMyPass] = useState(null);
   const [showPassModal, setShowPassModal] = useState(false);
+
+  // Cloud Sync state indicator
+  const [isCloudActive, setIsCloudActive] = useState(isFirebaseConfigured());
 
   // Nightclub interactive effects - Song ON by default!
   const [isPoliceAlert, setIsPoliceAlert] = useState(false);
@@ -47,7 +54,7 @@ export default function App() {
   const [adminViewMode, setAdminViewMode] = useState('ADMIN'); // 'ADMIN' | 'GUEST_PREVIEW'
 
   useEffect(() => {
-    // Initial data load
+    // Initial data load from local storage
     const currentAttendees = getAttendees();
     setAttendees(currentAttendees);
 
@@ -55,6 +62,21 @@ export default function App() {
     if (savedPass) {
       setMyPass(savedPass);
     }
+
+    // Set up Real-Time Cloud Listeners (Firebase Firestore)
+    // When admin changes photos, venue, dates or announcement, every participant's screen updates LIVE!
+    // When someone registers, Admin and Hall of Chaos update LIVE!
+    const unsubConfig = subscribeCloudConfig((cloudConfig) => {
+      if (cloudConfig) {
+        setConfig((prev) => ({ ...prev, ...cloudConfig }));
+      }
+    });
+
+    const unsubAttendees = subscribeCloudAttendees((cloudAttendees) => {
+      if (Array.isArray(cloudAttendees)) {
+        setAttendees(cloudAttendees);
+      }
+    });
 
     // Auto-start "Ramba Ho" by default!
     clubSynth.start();
@@ -77,6 +99,8 @@ export default function App() {
     window.addEventListener('keydown', unlockAudio, { once: true });
 
     return () => {
+      unsubConfig();
+      unsubAttendees();
       window.removeEventListener('click', unlockAudio);
       window.removeEventListener('touchstart', unlockAudio);
       window.removeEventListener('scroll', unlockAudio);
@@ -93,23 +117,9 @@ export default function App() {
   // RSVP submission callback
   const handleRegisterSuccess = (formData) => {
     const saved = saveAttendee(formData);
-    setAttendees((prev) => [saved, ...prev]);
+    setAttendees((prev) => [saved, ...prev.filter(a => a.id !== saved.id)]);
     setMyPass(saved);
     setShowPassModal(true);
-  };
-
-  const handleRegisterAnother = () => {
-    setShowPassModal(false);
-    const formElem = document.querySelector('#rsvp');
-    if (formElem) {
-      formElem.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // Slide photo updates from Slide Editor
-  const handleUpdatePhotos = (newPhotos) => {
-    const updated = savePartyConfig({ ...config, photos: newPhotos });
-    setConfig(updated);
   };
 
   // Admin Handlers
@@ -143,7 +153,7 @@ export default function App() {
 
   const handleAddManualAttendee = (newAttendee) => {
     const saved = saveAttendee(newAttendee);
-    setAttendees((prev) => [saved, ...prev]);
+    setAttendees((prev) => [saved, ...prev.filter(a => a.id !== saved.id)]);
   };
 
   const scrollToRsvp = () => {
@@ -173,18 +183,18 @@ export default function App() {
       />
 
       <main className="relative z-10 space-y-2">
-        {/* 1. Hero Landing: "Vibe Check" (Centered & Clean) */}
+        {/* 1. Hero Landing: "Vibe Check" with verbatim venue & Google Maps navigation */}
         <HeroDashboard
           config={config}
           onRsvpClick={scrollToRsvp}
         />
 
-        {/* 2. Photo Slideshow: "LAST YEAR PREVIEW" AT THE TOP */}
+        {/* 2. Photo Slideshow: "LAST YEAR PREVIEW" AT THE TOP (Synced across all users) */}
         <PhotoSlideshow 
           photos={config.photos}
         />
 
-        {/* 3. Live Glowing Party Countdown */}
+        {/* 3. Live Glowing Party Countdown to 9/10/2026 7:00 PM */}
         <PartyCountdown 
           targetDateProp={config.targetDate}
           isAdmin={isAdmin}
@@ -207,7 +217,7 @@ export default function App() {
           config={config}
         />
 
-        {/* 7. Squad / Hall of Chaos Attendees Roster */}
+        {/* 7. Squad / Hall of Chaos Attendees Roster (Real-time live monitoring) */}
         <AttendeesList
           attendees={attendees}
         />
@@ -231,7 +241,7 @@ export default function App() {
         />
       )}
 
-      {/* Host / Admin Configuration Modal */}
+      {/* Host / Admin Configuration & Live Monitoring Modal */}
       <AdminPanel
         isOpen={showAdminPanel}
         onClose={() => setShowAdminPanel(false)}
@@ -243,6 +253,7 @@ export default function App() {
         onAddManualAttendee={handleAddManualAttendee}
         viewMode={adminViewMode}
         onToggleViewMode={() => setAdminViewMode(m => m === 'ADMIN' ? 'GUEST_PREVIEW' : 'ADMIN')}
+        isCloudActive={isCloudActive}
       />
 
       {/* Host Login Modal */}

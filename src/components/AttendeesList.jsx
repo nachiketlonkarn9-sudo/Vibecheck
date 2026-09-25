@@ -113,56 +113,70 @@ export default function AttendeesList({ attendees = [] }) {
         </div>
       </div>
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAttendees.map((attendee) => (
-          <div
-            key={attendee.id}
-            className="glass-card rounded-2xl p-5 border border-white/10 hover:border-neon-purple/50 relative overflow-hidden group transition-all"
-          >
-            {/* Corner badge */}
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-neon-cyan border border-neon-cyan/20">
-                {attendee.vipBadge || 'PARTY ANIMAL'}
-              </span>
-              <span className="text-[10px] text-zinc-500 font-mono">
-                {attendee.submittedAt || 'Active'}
-              </span>
-            </div>
-
-            {/* Name */}
-            <h4 className="font-display font-black text-lg text-white mb-2 group-hover:text-neon-pink transition-colors">
-              {attendee.name}
-            </h4>
-
-            {/* Details Pills */}
-            <div className="space-y-1.5 text-xs text-zinc-300">
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Status:</span>
-                <span className="font-semibold text-neon-yellow">{attendee.attendance}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Alcohol:</span>
-                <span className="font-semibold text-neon-pink">{attendee.alcohol}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Food:</span>
-                <span className="font-semibold text-zinc-200 truncate max-w-[150px]">{attendee.food}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Floor:</span>
-                <span className="font-semibold text-neon-green truncate max-w-[150px]">{attendee.dance}</span>
-              </div>
-            </div>
-
-            {attendee.personality && (
-              <div className="mt-3 pt-2.5 border-t border-white/5 text-[11px] text-zinc-400 italic">
-                “{attendee.personality}”
-              </div>
-            )}
+      {/* Cards Grid or Empty State */}
+      {filteredAttendees.length === 0 ? (
+        <div className="glass-panel p-8 sm:p-10 rounded-3xl border border-white/10 text-center max-w-md mx-auto space-y-3 my-6">
+          <div className="w-14 h-14 rounded-2xl bg-neon-pink/20 border border-neon-pink/40 flex items-center justify-center mx-auto text-2xl shadow-neon-pink">
+            🔥
           </div>
-        ))}
-      </div>
+          <h3 className="font-display font-black text-lg sm:text-xl text-white">
+            {searchQuery ? "No legends match that name!" : "The Dance Floor is Waiting!"}
+          </h3>
+          <p className="text-xs sm:text-sm text-zinc-400">
+            {searchQuery ? "Try searching another nickname or clear filter." : "Be the first VIP legend to claim your spot — fill the RSVP form above! 😎🍻"}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAttendees.map((attendee) => (
+            <div
+              key={attendee.id}
+              className="glass-card rounded-2xl p-5 border border-white/10 hover:border-neon-purple/50 relative overflow-hidden group transition-all"
+            >
+              {/* Corner badge */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-neon-cyan border border-neon-cyan/20">
+                  {attendee.vipBadge || 'PARTY ANIMAL'}
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono">
+                  {attendee.submittedAt || 'Active'}
+                </span>
+              </div>
+
+              {/* Name */}
+              <h4 className="font-display font-black text-lg text-white mb-2 group-hover:text-neon-pink transition-colors">
+                {attendee.name}
+              </h4>
+
+              {/* Details Pills */}
+              <div className="space-y-1.5 text-xs text-zinc-300">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500">Status:</span>
+                  <span className="font-semibold text-neon-yellow">{attendee.attendance}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500">Alcohol:</span>
+                  <span className="font-semibold text-neon-pink">{attendee.alcohol}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500">Food:</span>
+                  <span className="font-semibold text-zinc-200 truncate max-w-[150px]">{attendee.food}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500">Floor:</span>
+                  <span className="font-semibold text-neon-green truncate max-w-[150px]">{attendee.dance}</span>
+                </div>
+              </div>
+
+              {attendee.personality && (
+                <div className="mt-3 pt-2.5 border-t border-white/5 text-[11px] text-zinc-400 italic">
+                  “{attendee.personality}”
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

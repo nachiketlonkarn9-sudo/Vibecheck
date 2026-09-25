@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center justify-center gap-2 text-neon-pink font-bold text-sm">
           <Flame className="w-4 h-4 text-neon-yellow" />
-          <span>AFTERMATH 2.0 • THE ANNUAL NIGHT OF CHAOS</span>
+          <span>VIBE CHECK 2026 • THE ANNUAL NIGHT OF CHAOS</span>
         </div>
 
         <p className="text-zinc-400">

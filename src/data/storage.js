@@ -1,27 +1,35 @@
 import { INITIAL_ATTENDEES } from './initialAttendees';
 import { PARTY_PHOTOS } from './photos';
+import { 
+  isFirebaseConfigured, 
+  saveCloudConfig, 
+  saveCloudAttendee, 
+  deleteCloudAttendee, 
+  toggleCloudAttendeeCheckIn 
+} from '../firebase';
 
-const STORAGE_KEY = 'party_chaos_rsvps_v1';
+const STORAGE_KEY = 'party_chaos_rsvps_v2';
 const MY_PASS_KEY = 'party_chaos_my_pass_v1';
-const CONFIG_KEY = 'party_vibe_check_config_v1';
+const CONFIG_KEY = 'party_vibe_check_config_v2';
 
-// Default configuration with party name "Vibe Check"
+// Default configuration with verbatim venue, address, maps link, and 9/10/2026 7pm IST
 export const DEFAULT_PARTY_CONFIG = {
   partyName: "Vibe Check",
   tagline: "Last year was crazy. This year… let’s make HR nervous. 😎🔥",
   subtitle: "Food 🍕 | Drinks 🍻 | Dance 💃 | Bad Decisions 😈",
-  venue: "The Penthouse Underground, Lounge 4",
-  venueAddress: "",
-  venueMapsUrl: "",
-  capacity: 35,
-  targetDate: new Date(Date.now() + (3 * 24 + 14) * 3600 * 1000 + 27 * 60 * 1000).toISOString(),
-  announcement: "⚡ HOST ANNOUNCEMENT: Wear comfortable shoes. Dance floor casualties will NOT be refunded! 🕺",
+  venue: "Mr.Hops Brew Cafe And Taproom",
+  venueAddress: "Enrico Heights Max Fashion Mall Building, Plot No, 20-11, Wardha Rd, beside Hotel Radisson Blu, Chatrapati Nagar, Nagpur, Maharashtra 440015",
+  venueMapsUrl: "https://www.google.com/maps/place/Mr.Hops+Brew+Cafe+And+Taproom/@21.1053897,79.0671535,17z/data=!3m1!4b1!4m6!3m5!1s0x3bd4bf3d41b856b3:0x9280645d09c01961!8m2!3d21.1053847!4d79.0697284!16s%2Fg%2F11fl55jx4t?entry=ttu&g_ep=EgoyMDI2MDkyMi4wIKXMDSoASAFQAw%3D%3D",
+  capacity: 50,
+  targetDate: "2026-10-09T19:00:00+05:30",
+  announcement: "⚡ HOST ANNOUNCEMENT: Wear comfortable shoes. Dance floor casualties at Mr. Hops will NOT be refunded! 🕺🍻",
   adminPin: "vibe123",
   photos: PARTY_PHOTOS
 };
 
 /**
  * Storage Layer for Party RSVPs and Admin Configuration.
+ * Seamlessly handles LocalStorage fallback + Firebase Cloud Sync.
  */
 
 export function getPartyConfig() {
@@ -41,8 +49,15 @@ export function getPartyConfig() {
 
 export function savePartyConfig(newConfig) {
   try {
-    const updated = { ...getPartyConfig(), ...newConfig };
+    const current = getPartyConfig();
+    const updated = { ...current, ...newConfig };
     localStorage.setItem(CONFIG_KEY, JSON.stringify(updated));
+
+    // Also sync to Cloud if configured
+    if (isFirebaseConfigured()) {
+      saveCloudConfig(updated);
+    }
+
     return updated;
   } catch (err) {
     console.error("Config save error:", err);
@@ -69,18 +84,24 @@ export function saveAttendee(attendeeData) {
     const attendees = getAttendees();
     const newEntry = {
       ...attendeeData,
-      id: 'att-' + Date.now(),
-      submittedAt: 'Just now',
+      id: attendeeData.id || ('att-' + Date.now()),
+      createdAt: Date.now(),
+      submittedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       checkedIn: false,
       vipBadge: attendeeData.alcohol?.includes('YES') ? 'LICENSED PARTY ANIMAL' : 'HYDRATION WARRIOR 🧃'
     };
     
-    // Add to list
-    const updated = [newEntry, ...attendees];
+    // Add to local list
+    const updated = [newEntry, ...attendees.filter(a => a.id !== newEntry.id)];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     
-    // Also save as current user's pass
+    // Save as current user's pass on this device
     localStorage.setItem(MY_PASS_KEY, JSON.stringify(newEntry));
+
+    // Also sync to Cloud
+    if (isFirebaseConfigured()) {
+      saveCloudAttendee(newEntry);
+    }
     
     return newEntry;
   } catch (err) {
@@ -94,6 +115,12 @@ export function deleteAttendee(id) {
     const attendees = getAttendees();
     const updated = attendees.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Sync to Cloud
+    if (isFirebaseConfigured()) {
+      deleteCloudAttendee(id);
+    }
+
     return updated;
   } catch (err) {
     console.error("Delete attendee error:", err);
@@ -104,13 +131,21 @@ export function deleteAttendee(id) {
 export function toggleAttendeeCheckIn(id) {
   try {
     const attendees = getAttendees();
+    let targetCheckedIn = false;
     const updated = attendees.map(a => {
       if (a.id === id) {
-        return { ...a, checkedIn: !a.checkedIn };
+        targetCheckedIn = !a.checkedIn;
+        return { ...a, checkedIn: targetCheckedIn };
       }
       return a;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Sync to Cloud
+    if (isFirebaseConfigured()) {
+      toggleCloudAttendeeCheckIn(id, !targetCheckedIn);
+    }
+
     return updated;
   } catch (err) {
     console.error("Check-in error:", err);
@@ -138,7 +173,7 @@ export function clearMyPass() {
 export function exportAttendeesToCSV(attendees) {
   const headers = ["Name", "Attendance", "Alcohol", "Food", "Dance", "Personality", "Checked In", "Submitted At"];
   const rows = attendees.map(a => [
-    `"${a.name.replace(/"/g, '""')}"`,
+    `"${(a.name || '').replace(/"/g, '""')}"`,
     `"${a.attendance || ''}"`,
     `"${a.alcohol || ''}"`,
     `"${a.food || ''}"`,

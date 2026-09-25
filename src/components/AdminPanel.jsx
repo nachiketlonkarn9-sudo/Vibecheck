@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldCheck, Settings, Users, Camera, Download, Trash2, CheckCircle2, 
   X, AlertTriangle, Plus, RefreshCw, Eye, Edit3, Save, Sparkles, MapPin, 
-  Calendar, Megaphone, Upload, Check, Image as ImageIcon
+  Calendar, Megaphone, Upload, Check, Image as ImageIcon, Cloud, CloudOff, Globe
 } from 'lucide-react';
 import { exportAttendeesToCSV } from '../data/storage';
 import { GALLERY_PRESETS } from '../data/photos';
+import { getFirebaseConfig, saveFirebaseConfig, isFirebaseConfigured } from '../firebase';
 import EditSlideModal from './EditSlideModal';
 
 // Helper to convert ISO or Date to local datetime-local string YYYY-MM-DDTHH:mm
@@ -32,11 +33,17 @@ export default function AdminPanel({
   onToggleCheckIn, 
   onAddManualAttendee,
   viewMode,
-  onToggleViewMode
+  onToggleViewMode,
+  isCloudActive
 }) {
-  const [activeTab, setActiveTab] = useState('CONFIG'); // 'CONFIG' | 'ATTENDEES' | 'PHOTOS'
+  const [activeTab, setActiveTab] = useState('CONFIG'); // 'CONFIG' | 'ATTENDEES' | 'PHOTOS' | 'CLOUD'
   const [formData, setFormData] = useState({ ...config });
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Cloud Sync form state
+  const [firebaseJsonInput, setFirebaseJsonInput] = useState('');
+  const [cloudConnectError, setCloudConnectError] = useState('');
+  const [cloudConnectSuccess, setCloudConnectSuccess] = useState(false);
 
   // Sync formData whenever modal opens or config updates
   useEffect(() => {
@@ -91,7 +98,7 @@ export default function AdminPanel({
     setManualName('');
   };
 
-  // Device gallery image upload
+  // Device gallery image upload with automatic client-side canvas compression (~80KB)
   const handleAdminDeviceUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -99,10 +106,30 @@ export default function AdminPanel({
     setAdminUploadFileName(file.name);
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target?.result;
-      if (dataUrl) {
-        setNewPhotoUrl(dataUrl);
-      }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxW = 1200;
+        const maxH = 900;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxW || h > maxH) {
+          if (w / maxW > h / maxH) {
+            h = Math.round((h * maxW) / w);
+            w = maxW;
+          } else {
+            w = Math.round((w * maxH) / h);
+            h = maxH;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setNewPhotoUrl(compressedDataUrl);
+      };
+      img.src = event.target?.result;
     };
     reader.readAsDataURL(file);
   };
@@ -245,6 +272,18 @@ export default function AdminPanel({
           >
             <Camera className="w-4 h-4" />
             <span>Top Slideshow & Gallery ({formData.photos?.length || 0})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('CLOUD')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold tracking-wide transition-colors border-b-2 ${
+              activeTab === 'CLOUD'
+                ? 'text-neon-green border-neon-green bg-white/5'
+                : 'text-zinc-400 border-transparent hover:text-zinc-200'
+            }`}
+          >
+            <Cloud className="w-4 h-4" />
+            <span>Cloud Sync ☁️ {isFirebaseConfigured() ? '(Active ✅)' : '(Setup)'}</span>
           </button>
         </div>
 
@@ -784,6 +823,163 @@ export default function AdminPanel({
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: CLOUD SYNC & CROSS-DEVICE DATABASE */}
+          {activeTab === 'CLOUD' && (
+            <div className="space-y-6">
+              {/* Status Header Banner */}
+              {isFirebaseConfigured() ? (
+                <div className="glass-panel p-5 rounded-2xl border border-neon-green/50 bg-night-900/90 shadow-[0_0_25px_rgba(0,255,136,0.25)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-neon-green/20 border border-neon-green flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle2 className="w-6 h-6 text-neon-green" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-display font-black text-base text-white">
+                          LIVE CLOUD SYNC: ACTIVE ✅
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-neon-green/20 text-neon-green border border-neon-green/30">
+                          REAL-TIME
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-300 mt-1">
+                        All venue updates, date changes, announcements, slides/photos, and guest RSVPs are syncing in real-time across all mobile and desktop devices!
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Disconnect cloud sync and switch back to local browser mode?")) {
+                        saveFirebaseConfig(null);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold transition-all shrink-0"
+                  >
+                    Disconnect Cloud
+                  </button>
+                </div>
+              ) : (
+                <div className="glass-panel p-5 rounded-2xl border border-neon-yellow/50 bg-night-900/90 shadow-[0_0_25px_rgba(255,230,0,0.15)] flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-neon-yellow/20 border border-neon-yellow flex items-center justify-center shrink-0 mt-0.5">
+                    <CloudOff className="w-6 h-6 text-neon-yellow" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-black text-base text-white">
+                        RUNNING IN LOCAL MODE (Offline / Single Device)
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/30">
+                        LOCAL STORAGE
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-300 mt-1">
+                      Currently, configuration and registrations are saved only in this browser. To make this a live registration form where everyone with the link sees your venue updates and you monitor all registrations across all devices, connect a free Firebase project below!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Paste Firebase Configuration Form */}
+              <div className="glass-card p-5 rounded-2xl border border-white/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cloud className="w-5 h-5 text-neon-cyan" />
+                    <h3 className="font-display font-black text-sm text-white uppercase tracking-wider">
+                      Connect Firebase Cloud Firestore (Free)
+                    </h3>
+                  </div>
+                  <span className="text-xs text-zinc-400">Takes ~2 minutes</span>
+                </div>
+
+                <p className="text-xs text-zinc-300">
+                  Paste your Firebase Web Configuration object below. It will connect instantly and enable live, multi-user sync for everyone who opens your party URL!
+                </p>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  setCloudConnectError('');
+                  try {
+                    const trimmed = firebaseJsonInput.trim();
+                    if (!trimmed) {
+                      setCloudConnectError('Please paste your Firebase configuration object.');
+                      return;
+                    }
+
+                    let jsonStr = trimmed;
+                    if (jsonStr.includes('{') && jsonStr.includes('}')) {
+                      jsonStr = jsonStr.substring(jsonStr.indexOf('{'), jsonStr.lastIndexOf('}') + 1);
+                      jsonStr = jsonStr.replace(/([a-zA-Z0-9_]+)\s*:/g, '"$1":').replace(/'/g, '"');
+                      jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+                    }
+
+                    const configObj = JSON.parse(jsonStr);
+                    if (!configObj.projectId) {
+                      setCloudConnectError('Invalid configuration: "projectId" is required.');
+                      return;
+                    }
+
+                    saveFirebaseConfig(configObj);
+                  } catch (err) {
+                    setCloudConnectError('Could not parse configuration. Ensure it contains apiKey and projectId.');
+                  }
+                }} className="space-y-3">
+                  <div>
+                    <textarea
+                      rows={6}
+                      value={firebaseJsonInput}
+                      onChange={(e) => setFirebaseJsonInput(e.target.value)}
+                      placeholder={`{\n  "apiKey": "AIzaSy...",\n  "authDomain": "vibecheck-party.firebaseapp.com",\n  "projectId": "vibecheck-party",\n  "storageBucket": "vibecheck-party.appspot.com",\n  "messagingSenderId": "...",\n  "appId": "..."\n}`}
+                      className="w-full px-4 py-3 rounded-xl bg-night-950 font-mono text-xs text-neon-cyan border border-white/10 focus:outline-none focus:border-neon-cyan placeholder-zinc-600"
+                    />
+                  </div>
+
+                  {cloudConnectError && (
+                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>{cloudConnectError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-xl font-display font-black text-xs uppercase tracking-wider bg-gradient-to-r from-neon-green via-neon-cyan to-neon-purple text-night-950 shadow-neon-glow hover:scale-105 active:scale-95 transition-all"
+                    >
+                      Connect & Enable Live Sync 🚀
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Step-by-Step Instructions */}
+              <div className="glass-card p-5 rounded-2xl border border-white/10 space-y-3 text-xs text-zinc-300">
+                <div className="flex items-center gap-2 font-display font-black text-neon-yellow uppercase tracking-wider text-xs">
+                  <Sparkles className="w-4 h-4 text-neon-yellow" />
+                  <span>How to create a free Firebase Database (Step-by-Step)</span>
+                </div>
+                
+                <ol className="list-decimal list-inside space-y-2 text-zinc-300 leading-relaxed">
+                  <li>
+                    Open <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-neon-cyan underline font-bold">console.firebase.google.com</a> with your Google account.
+                  </li>
+                  <li>
+                    Click <strong className="text-white">"Create a project"</strong> (name it e.g. <span className="text-neon-pink font-mono">vibecheck</span>, disable Google Analytics if not needed, then click Create).
+                  </li>
+                  <li>
+                    In the left menu, click <strong className="text-white">Build &gt; Firestore Database</strong>, then click <strong className="text-white">"Create database"</strong>. Choose <strong className="text-neon-green">"Start in test mode"</strong> so everyone can register, and select any location.
+                  </li>
+                  <li>
+                    Go to <strong className="text-white">Project Settings</strong> (gear icon top-left) &gt; <strong className="text-white">General</strong> &gt; scroll down to <strong className="text-white">"Your apps"</strong> and click the Web <strong className="text-neon-cyan font-mono">&lt;/&gt;</strong> icon.
+                  </li>
+                  <li>
+                    Register the app name, copy the <strong className="text-neon-yellow font-mono">firebaseConfig</strong> object, and paste it into the box above!
+                  </li>
+                </ol>
               </div>
             </div>
           )}
