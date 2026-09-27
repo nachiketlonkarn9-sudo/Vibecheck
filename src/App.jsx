@@ -189,10 +189,8 @@ export default function App() {
           onRsvpClick={scrollToRsvp}
         />
 
-        {/* 2. Photo Slideshow: "LAST YEAR PREVIEW" AT THE TOP (Synced across all users) */}
-        <PhotoSlideshow 
-          photos={config.photos}
-        />
+        {/* 2. Photo Slideshow: "LAST YEAR PREVIEW" AT THE TOP */}
+        <PhotoSlideshow />
 
         {/* 3. Live Glowing Party Countdown to 9/10/2026 7:00 PM */}
         <PartyCountdown 

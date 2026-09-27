@@ -36,11 +36,14 @@ export function getPartyConfig() {
   try {
     const raw = localStorage.getItem(CONFIG_KEY);
     if (!raw) {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(DEFAULT_PARTY_CONFIG));
+      // Save without photos so asset imports always win
+      const { photos: _photos, ...configToSave } = DEFAULT_PARTY_CONFIG;
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(configToSave));
       return DEFAULT_PARTY_CONFIG;
     }
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_PARTY_CONFIG, ...parsed };
+    // Always inject the live PARTY_PHOTOS — never restore from localStorage
+    return { ...DEFAULT_PARTY_CONFIG, ...parsed, photos: PARTY_PHOTOS };
   } catch (err) {
     console.warn("Config read error, using default:", err);
     return DEFAULT_PARTY_CONFIG;
@@ -51,11 +54,13 @@ export function savePartyConfig(newConfig) {
   try {
     const current = getPartyConfig();
     const updated = { ...current, ...newConfig };
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(updated));
+    // Strip photos before saving — always loaded from bundled assets
+    const { photos: _photos, ...toSave } = updated;
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(toSave));
 
     // Also sync to Cloud if configured
     if (isFirebaseConfigured()) {
-      saveCloudConfig(updated);
+      saveCloudConfig(toSave);
     }
 
     return updated;
